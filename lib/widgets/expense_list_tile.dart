@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import '../core/utils/date_formatter.dart';
 import '../data/models/expense.dart';
@@ -7,12 +8,14 @@ class ExpenseListTile extends StatelessWidget {
   final Expense expense;
   final VoidCallback? onTap;
   final VoidCallback? onDelete;
+  final bool showCategoryChip;
 
   const ExpenseListTile({
     super.key,
     required this.expense,
     this.onTap,
     this.onDelete,
+    this.showCategoryChip = true,
   });
 
   @override
@@ -28,8 +31,9 @@ class ExpenseListTile extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // Category Icon Avatar
               Container(
@@ -49,52 +53,132 @@ class ExpenseListTile extends StatelessWidget {
                   size: 22,
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 12),
 
-              // Title, Category Label & Notes
+              // Content Area: 2 independent full-width lines
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      expense.title,
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: -0.2,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
+                    // Line 1: Title (left) & Amount (right)
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Text(
-                          category.label,
-                          style: TextStyle(
-                            color: category.color,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                        Expanded(
+                          child: Text(
+                            expense.title,
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: -0.2,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '•',
-                          style: TextStyle(
-                            color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
-                            fontSize: 10,
+                        const SizedBox(width: 8),
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: MediaQuery.sizeOf(context).width * 0.48,
                           ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          DateFormatter.formatDate(expense.date),
-                          style: TextStyle(
-                            color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              expense.formattedPkr,
+                              maxLines: 1,
+                              style: theme.textTheme.bodyLarge?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -0.3,
+                              ),
+                            ),
                           ),
                         ),
                       ],
                     ),
+                    const SizedBox(height: 2), // Tight vertical rhythm matching home screen
+
+                    // Line 2:
+                    // When onDelete != null (History screen):
+                    //   Left: [Category Chip (if showCategoryChip)] + Date
+                    //   Right: Delete button below amount
+                    // When onDelete == null (Home screen):
+                    //   Left: [Category Chip (if showCategoryChip)] below title
+                    //   Right: Date below amount
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Left column
+                        Expanded(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (showCategoryChip) ...[
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: category.color.withValues(
+                                      alpha: isDark ? 0.18 : 0.10,
+                                    ),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    category.label,
+                                    style: TextStyle(
+                                      color: category.color,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                if (onDelete != null) const SizedBox(width: 8),
+                              ],
+                              if (onDelete != null)
+                                Flexible(
+                                  child: Text(
+                                    DateFormatter.formatDate(expense.date),
+                                    style: TextStyle(
+                                      color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+
+                        // Right column
+                        if (onDelete != null)
+                          IconButton(
+                            style: IconButton.styleFrom(
+                              minimumSize: Size.zero,
+                              padding: EdgeInsets.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            icon: const Icon(CupertinoIcons.trash, size: 17),
+                            color: theme.colorScheme.error,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            tooltip: 'Delete',
+                            onPressed: onDelete,
+                          )
+                        else
+                          Text(
+                            DateFormatter.formatDate(expense.date),
+                            style: TextStyle(
+                              color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w400,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
+                    ),
+
                     if (expense.notes != null && expense.notes!.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(
@@ -110,32 +194,6 @@ class ExpenseListTile extends StatelessWidget {
                     ],
                   ],
                 ),
-              ),
-              const SizedBox(width: 12),
-
-              // Amount in PKR
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    expense.formattedPkr,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.3,
-                    ),
-                  ),
-                  if (onDelete != null) ...[
-                    const SizedBox(height: 2),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                      color: theme.colorScheme.error.withValues(alpha: 0.7),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      tooltip: 'Delete',
-                      onPressed: onDelete,
-                    ),
-                  ],
-                ],
               ),
             ],
           ),

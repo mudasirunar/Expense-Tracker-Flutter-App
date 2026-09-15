@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -59,7 +60,7 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
     final picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate.isAfter(now) ? now : _selectedDate,
-      firstDate: DateTime(2020),
+      firstDate: DateTime(1900),
       lastDate: now, // Stated rule: no future dates allowed
       helpText: 'SELECT EXPENSE DATE',
     );
@@ -153,7 +154,7 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
         actions: [
           if (isEditing)
             IconButton(
-              icon: Icon(Icons.delete_outline_rounded, color: theme.colorScheme.error),
+              icon: Icon(CupertinoIcons.trash_fill, color: theme.colorScheme.error, size: 20),
               tooltip: 'Delete Expense',
               onPressed: _isSaving ? null : _deleteExpense,
             ),

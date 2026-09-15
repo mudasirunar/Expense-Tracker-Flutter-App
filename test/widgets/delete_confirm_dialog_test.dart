@@ -25,8 +25,8 @@ void main() {
       await tester.tap(find.text('Open Dialog'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Delete Expense'), findsOneWidget);
-      expect(find.text('Are you sure you want to delete this expense? This action cannot be undone.'), findsOneWidget);
+      expect(find.text('Delete Expense?'), findsOneWidget);
+      expect(find.text('This action cannot be undone.'), findsOneWidget);
       expect(find.text('Cancel'), findsOneWidget);
       expect(find.text('Delete'), findsOneWidget);
     });
@@ -77,6 +77,28 @@ void main() {
 
       expect(result, isTrue);
       expect(find.byType(AlertDialog), findsNothing);
+    });
+
+    testWidgets('renders cleanly in landscape mode without RenderFlex overflow', (tester) async {
+      tester.view.physicalSize = const Size(800, 360);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      await tester.pumpWidget(buildTestApp(
+        Builder(
+          builder: (context) => ElevatedButton(
+            onPressed: () => DeleteConfirmDialog.show(context),
+            child: const Text('Open Dialog'),
+          ),
+        ),
+      ));
+
+      await tester.tap(find.text('Open Dialog'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete Expense?'), findsOneWidget);
+      expect(find.text('This action cannot be undone.'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
   });
 }
