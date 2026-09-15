@@ -96,8 +96,12 @@ class _NativeIosThemeMenuButtonState extends State<_NativeIosThemeMenuButton> {
   }
 }
 
-/// Custom Frosted Liquid Glass Dropdown Menu Button for Android and Web.
-class _CrossPlatformThemeMenuButton extends StatelessWidget {
+/// Backward-compatible alias
+typedef LiquidGlassThemeDropdown = ThemeModeDropdown;
+
+/// Liquid Glass Dropdown Menu Button for Android and Web.
+/// Features in-place morphing geometry, subpixel integer alignment, and deferred theme switching.
+class _CrossPlatformThemeMenuButton extends StatefulWidget {
   final ThemeMode currentMode;
   final bool isDark;
 
@@ -106,26 +110,121 @@ class _CrossPlatformThemeMenuButton extends StatelessWidget {
     required this.isDark,
   });
 
-  void _openMenu(BuildContext context) {
-    final renderBox = context.findRenderObject() as RenderBox?;
-    if (renderBox == null) return;
-    final size = renderBox.size;
-    final offset = renderBox.localToGlobal(Offset.zero);
-
-    Navigator.of(context).push(
-      _LiquidGlassMenuRoute(
-        buttonRect: offset & size,
-        currentMode: currentMode,
-        isDark: isDark,
-        onSelected: (mode) {
-          context.read<ThemeProvider>().setThemeMode(mode);
-        },
+  /// Calculates the exact width of the dropdown button for a given theme mode,
+  /// ensuring integer pixel alignment and zero layout jumping between
+  /// collapsed and expanded states.
+  static double calculateButtonWidth(ThemeMode mode, BuildContext context) {
+    final label = switch (mode) {
+      ThemeMode.system => 'System',
+      ThemeMode.light => 'Light',
+      ThemeMode.dark => 'Dark',
+    };
+    final textDirection = Directionality.maybeOf(context) ?? TextDirection.ltr;
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: label,
+        style: const TextStyle(
+          fontSize: 14.5,
+          fontWeight: FontWeight.normal,
+          letterSpacing: -0.2,
+        ),
       ),
+      textDirection: textDirection,
+    )..layout();
+
+    // 12 padding each side (24) + 1 border each side (2) + 19 icon + 8 spacing + text width
+    return (53.0 + textPainter.width).ceilToDouble();
+  }
+
+  @override
+  State<_CrossPlatformThemeMenuButton> createState() =>
+      _CrossPlatformThemeMenuButtonState();
+}
+
+class _CrossPlatformThemeMenuButtonState
+    extends State<_CrossPlatformThemeMenuButton> {
+  final LayerLink _link = LayerLink();
+  final GlobalKey<_LiquidMenuOverlayState> _menuKey =
+      GlobalKey<_LiquidMenuOverlayState>();
+  OverlayEntry? _entry;
+  bool _open = false;
+
+  void _toggle() {
+    if (_open) {
+      _close();
+    } else {
+      _openMenu();
+    }
+  }
+
+  void _openMenu() {
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    final size = box.size;
+    final anchorOffset = box.localToGlobal(Offset.zero);
+    final overlay = Overlay.of(context);
+
+    _entry = OverlayEntry(
+      builder: (ctx) {
+        final themeProvider = context.watch<ThemeProvider>();
+        final isDark = themeProvider.isCurrentlyDark(context);
+        final currentMode = themeProvider.themeMode;
+
+        return _LiquidMenuOverlay(
+          key: _menuKey,
+          link: _link,
+          anchorSize: size,
+          anchorOffset: anchorOffset,
+          selectedMode: currentMode,
+          isDark: isDark,
+          onSelect: (mode) {
+            _close(targetMode: mode);
+          },
+          onDismiss: () => _close(),
+        );
+      },
     );
+
+    overlay.insert(_entry!);
+    setState(() => _open = true);
+  }
+
+  void _close({ThemeMode? targetMode}) {
+    final entry = _entry;
+    if (entry == null) return;
+    _entry = null;
+
+    final state = _menuKey.currentState;
+    if (state == null) {
+      if (targetMode != null && mounted) {
+        context.read<ThemeProvider>().setThemeMode(targetMode);
+      }
+      entry.remove();
+      if (mounted) setState(() => _open = false);
+      return;
+    }
+
+    state.playClose(targetMode: targetMode).whenComplete(() {
+      if (targetMode != null && mounted) {
+        context.read<ThemeProvider>().setThemeMode(targetMode);
+      }
+      entry.remove();
+      if (mounted) setState(() => _open = false);
+    });
+  }
+
+  @override
+  void dispose() {
+    _entry?.remove();
+    _entry = null;
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final currentMode = widget.currentMode;
+    final isDark = widget.isDark;
+
     final (currentIcon, currentColor, currentLabel) = switch (currentMode) {
       ThemeMode.system => (
           CupertinoIcons.device_phone_portrait,
@@ -145,68 +244,66 @@ class _CrossPlatformThemeMenuButton extends StatelessWidget {
     };
 
     final textPrimary = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
+    final buttonWidth =
+        _CrossPlatformThemeMenuButton.calculateButtonWidth(currentMode, context);
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => _openMenu(context),
-        borderRadius: BorderRadius.circular(22),
-        splashColor: currentColor.withValues(alpha: 0.15),
-        highlightColor: currentColor.withValues(alpha: 0.08),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(22),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: isDark
-                      ? [
-                          const Color(0x3D1E293B),
-                          const Color(0x240F172A),
-                        ]
-                      : [
-                          const Color(0x4DFFFFFF),
-                          const Color(0x2EFFFFFF),
-                        ],
+    return CompositedTransformTarget(
+      link: _link,
+      child: GestureDetector(
+        onTap: _toggle,
+        child: Opacity(
+          opacity: _open ? 0.0 : 1.0,
+          child: SizedBox(
+            width: buttonWidth,
+            height: 38.0,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: BackdropFilter(
+                filter: ImageFilter.compose(
+                  outer: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                  inner: ColorFilter.matrix(_saturationMatrix(1.35)),
                 ),
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(
-                  color: isDark
-                      ? Colors.white.withValues(alpha: 0.16)
-                      : Colors.white.withValues(alpha: 0.50),
-                  width: 1.0,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.06),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    currentIcon,
-                    size: 19,
-                    color: currentColor,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    currentLabel,
-                    style: TextStyle(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w600,
-                      color: textPrimary,
-                      letterSpacing: -0.2,
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    color: (isDark ? Colors.black : Colors.white)
+                        .withValues(alpha: isDark ? 0.22 : 0.40),
+                    border: Border.all(
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.20)
+                          : Colors.black.withValues(alpha: 0.12),
+                      width: 1,
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                ],
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        currentIcon,
+                        size: 19,
+                        color: currentColor,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        currentLabel,
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.normal,
+                          color: textPrimary,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -216,261 +313,449 @@ class _CrossPlatformThemeMenuButton extends StatelessWidget {
   }
 }
 
-/// Route presenting the floating liquid glass menu expanding directly over the button.
-class _LiquidGlassMenuRoute extends PopupRoute<void> {
-  final Rect buttonRect;
-  final ThemeMode currentMode;
-  final bool isDark;
-  final ValueChanged<ThemeMode> onSelected;
+// ---------------------------------------------------------------------
+// Overlay with saturated blur + smooth cubic morph animation
+// ---------------------------------------------------------------------
 
-  _LiquidGlassMenuRoute({
-    required this.buttonRect,
-    required this.currentMode,
+class _LiquidMenuOverlay extends StatefulWidget {
+  final LayerLink link;
+  final Size anchorSize;
+  final Offset anchorOffset;
+  final ThemeMode selectedMode;
+  final bool isDark;
+  final ValueChanged<ThemeMode> onSelect;
+  final VoidCallback onDismiss;
+
+  const _LiquidMenuOverlay({
+    super.key,
+    required this.link,
+    required this.anchorSize,
+    required this.anchorOffset,
+    required this.selectedMode,
     required this.isDark,
-    required this.onSelected,
+    required this.onSelect,
+    required this.onDismiss,
   });
 
   @override
-  Color? get barrierColor => Colors.black.withValues(alpha: 0.05);
-
-  @override
-  bool get barrierDismissible => true;
-
-  @override
-  String? get barrierLabel => 'Dismiss theme menu';
-
-  @override
-  Duration get transitionDuration => const Duration(milliseconds: 280);
-
-  @override
-  Duration get reverseTransitionDuration => const Duration(milliseconds: 200);
-
-  @override
-  Widget buildPage(
-    BuildContext context,
-    Animation<double> animation,
-    Animation<double> secondaryAnimation,
-  ) {
-    return _LiquidGlassMenuPopup(
-      buttonRect: buttonRect,
-      currentMode: currentMode,
-      isDark: isDark,
-      onSelected: onSelected,
-      animation: animation,
-    );
-  }
+  State<_LiquidMenuOverlay> createState() => _LiquidMenuOverlayState();
 }
 
-class _LiquidGlassMenuPopup extends StatelessWidget {
-  final Rect buttonRect;
-  final ThemeMode currentMode;
-  final bool isDark;
-  final ValueChanged<ThemeMode> onSelected;
-  final Animation<double> animation;
+class _LiquidMenuOverlayState extends State<_LiquidMenuOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+  late final CurvedAnimation _curved;
+  late ThemeMode _activeMode;
+  ThemeMode? _closingTargetMode;
+  bool _closing = false;
 
-  const _LiquidGlassMenuPopup({
-    required this.buttonRect,
-    required this.currentMode,
-    required this.isDark,
-    required this.onSelected,
-    required this.animation,
-  });
+  @override
+  void initState() {
+    super.initState();
+    _activeMode = widget.selectedMode;
+    _c = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 320),
+      reverseDuration: const Duration(milliseconds: 240),
+    );
+    // Opening: fast start, long gentle settle.
+    // Closing: fast start, soft ease-out landing back into the button.
+    _curved = CurvedAnimation(
+      parent: _c,
+      curve: const Cubic(0.32, 0.72, 0.0, 1.0),
+      reverseCurve: Curves.easeOutCubic,
+    );
+    _c.forward();
+  }
+
+  TickerFuture playClose({ThemeMode? targetMode}) {
+    if (!_closing) {
+      setState(() {
+        _closing = true;
+        if (targetMode != null) {
+          _closingTargetMode = targetMode;
+          _activeMode = targetMode;
+        }
+      });
+    }
+    return _c.reverse();
+  }
+
+  void _handleSelect(ThemeMode mode) {
+    if (_closing) return;
+    _closing = true;
+    setState(() {
+      _closingTargetMode = mode;
+      _activeMode = mode;
+    });
+    widget.onSelect(mode);
+  }
+
+  @override
+  void dispose() {
+    _curved.dispose();
+    _c.dispose();
+    super.dispose();
+  }
+
+  static const double _menuWidth = 232.0;
+  static const double _rowHeight = 46.0;
+  double get _expandedHeight => 3 * _rowHeight + 14.0;
+
+  bool _isModeDark(ThemeMode mode, BuildContext context) {
+    if (mode == ThemeMode.dark) return true;
+    if (mode == ThemeMode.light) return false;
+    return MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final screenSize = MediaQuery.of(context).size;
-    final padding = MediaQuery.of(context).padding;
-    const menuWidth = 208.0;
-    const estimatedHeight = 168.0;
+    final targetMode = _closingTargetMode ?? widget.selectedMode;
+    final targetIsDark = _isModeDark(targetMode, context);
+    final currentIsDark = widget.isDark;
 
-    // Position directly OVER the button so the button seamlessly morphs into the menu
-    final double top = (buttonRect.top - 4).clamp(
-      padding.top + 6,
-      screenSize.height - estimatedHeight - 12,
-    );
+    final (targetIcon, targetColor, targetLabel) = switch (targetMode) {
+      ThemeMode.system => (
+          CupertinoIcons.device_phone_portrait,
+          const Color(0xFF007AFF),
+          'System',
+        ),
+      ThemeMode.light => (
+          CupertinoIcons.sun_max_fill,
+          const Color(0xFFFF9500),
+          'Light',
+        ),
+      ThemeMode.dark => (
+          CupertinoIcons.moon_fill,
+          const Color(0xFF5E5CE6),
+          'Dark',
+        ),
+    };
 
-    final double left = (buttonRect.right - menuWidth).clamp(
-      10.0,
-      screenSize.width - menuWidth - 10.0,
-    );
+    final currentTextPrimary =
+        currentIsDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
+    final targetTextPrimary =
+        targetIsDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
 
-    // Springy liquid curve with overshoot bounce
-    final curved = CurvedAnimation(
-      parent: animation,
-      curve: Curves.easeOutBack,
-      reverseCurve: Curves.easeInBack,
-    );
+    final targetWidth =
+        _CrossPlatformThemeMenuButton.calculateButtonWidth(targetMode, context);
 
     return Stack(
       children: [
-        Positioned(
-          top: top,
-          left: left,
-          child: FadeTransition(
-            opacity: CurvedAnimation(
-              parent: animation,
-              curve: const Interval(0.0, 0.65, curve: Curves.easeOut),
-            ),
-            child: ScaleTransition(
-              scale: Tween<double>(begin: 0.78, end: 1.0).animate(curved),
-              alignment: Alignment.topRight,
-              child: Material(
-                color: Colors.transparent,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(22),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
-                    child: Container(
-                      width: menuWidth,
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(22),
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: isDark
-                              ? [
-                                  const Color(0x3D1E293B),
-                                  const Color(0x240F172A),
-                                ]
-                              : [
-                                  const Color(0x4DFFFFFF),
-                                  const Color(0x2EFFFFFF),
-                                ],
-                        ),
-                        border: Border.all(
-                          color: isDark
-                              ? Colors.white.withValues(alpha: 0.16)
-                              : Colors.white.withValues(alpha: 0.50),
-                          width: 1.0,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: isDark ? 0.22 : 0.05),
-                            blurRadius: 24,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
+        Positioned.fill(
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTap: () {
+              if (!_closing) widget.onDismiss();
+            },
+            child: const SizedBox.expand(),
+          ),
+        ),
+        AnimatedBuilder(
+          animation: _curved,
+          builder: (context, _) {
+            final t = _curved.value;
+            // Morph width from target button width (or initial anchor width) to menu width.
+            final startWidth = widget.anchorSize.width;
+            final baseWidth = _closing ? targetWidth : startWidth;
+            final width = lerpDouble(baseWidth, _menuWidth, t)!;
+            final height = lerpDouble(widget.anchorSize.height, _expandedHeight, t)!;
+            final radius = lerpDouble(20.0, 24.0, t)!;
+
+            // Smooth cross-fade between list and collapsed face
+            final faceOpacity = ((0.32 - t) / 0.32).clamp(0.0, 1.0);
+            final listOpacity = ((t - 0.30) / 0.45).clamp(0.0, 1.0);
+
+            // Morph background, border, and text colors smoothly into target theme
+            final bgAlpha = lerpDouble(
+              targetIsDark ? 0.22 : 0.40,
+              currentIsDark ? 0.30 : 0.46,
+              t,
+            )!;
+            final baseBgColor = Color.lerp(
+              targetIsDark ? Colors.black : Colors.white,
+              currentIsDark ? Colors.black : Colors.white,
+              t,
+            )!;
+            final effectiveBgColor = baseBgColor.withValues(alpha: bgAlpha);
+
+            final targetBorderColor = targetIsDark
+                ? Colors.white.withValues(alpha: 0.20)
+                : Colors.black.withValues(alpha: 0.12);
+            final currentBorderColor = currentIsDark
+                ? Colors.white.withValues(alpha: 0.20)
+                : Colors.black.withValues(alpha: 0.12);
+            final effectiveBorderColor =
+                Color.lerp(targetBorderColor, currentBorderColor, t)!;
+
+            final effectiveFaceTextColor =
+                Color.lerp(targetTextPrimary, currentTextPrimary, t)!;
+
+            final minOffsetX = 8.0 - widget.anchorOffset.dx;
+            final desiredOffsetX = widget.anchorSize.width - width;
+            final effectiveOffsetX =
+                desiredOffsetX < minOffsetX ? minOffsetX : desiredOffsetX;
+
+            return CompositedTransformFollower(
+              link: widget.link,
+              showWhenUnlinked: false,
+              offset: Offset(effectiveOffsetX, 0),
+              child: SizedBox(
+                width: width,
+                height: height,
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(radius),
+                    child: BackdropFilter(
+                      filter: ImageFilter.compose(
+                        outer: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                        inner: ColorFilter.matrix(_saturationMatrix(1.35)),
                       ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _GlassMenuItem(
-                            title: 'System Default',
-                            icon: CupertinoIcons.device_phone_portrait,
-                            iconColor: const Color(0xFF007AFF),
-                            isSelected: currentMode == ThemeMode.system,
-                            isDark: isDark,
-                            onTap: () {
-                              Navigator.of(context).pop();
-                              onSelected(ThemeMode.system);
-                            },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(radius),
+                          color: effectiveBgColor,
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Colors.white.withValues(
+                                alpha: (currentIsDark ? 0.12 : 0.28) * t,
+                              ),
+                              Colors.transparent,
+                            ],
                           ),
-                          const SizedBox(height: 2),
-                          _GlassMenuItem(
-                            title: 'Light',
-                            icon: currentMode == ThemeMode.light
-                                ? CupertinoIcons.sun_max_fill
-                                : CupertinoIcons.sun_max,
-                            iconColor: const Color(0xFFFF9500),
-                            isSelected: currentMode == ThemeMode.light,
-                            isDark: isDark,
-                            onTap: () {
-                              Navigator.of(context).pop();
-                              onSelected(ThemeMode.light);
-                            },
+                          border: Border.all(
+                            color: effectiveBorderColor,
+                            width: 1,
                           ),
-                          const SizedBox(height: 2),
-                          _GlassMenuItem(
-                            title: 'Dark',
-                            icon: currentMode == ThemeMode.dark
-                                ? CupertinoIcons.moon_fill
-                                : CupertinoIcons.moon,
-                            iconColor: const Color(0xFF5E5CE6),
-                            isSelected: currentMode == ThemeMode.dark,
-                            isDark: isDark,
-                            onTap: () {
-                              Navigator.of(context).pop();
-                              onSelected(ThemeMode.dark);
-                            },
-                          ),
-                        ],
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(
+                                alpha: lerpDouble(
+                                  targetIsDark ? 0.20 : 0.05,
+                                  currentIsDark ? 0.24 : 0.06,
+                                  t,
+                                )!,
+                              ),
+                              blurRadius: lerpDouble(10.0, 26.0, t)!,
+                              offset: Offset(0, lerpDouble(2.0, 8.0, t)!),
+                            ),
+                          ],
+                        ),
+                        child: Stack(
+                          clipBehavior: Clip.hardEdge,
+                          children: [
+                            // Collapsed face — identical geometry and centering to real button
+                            if (faceOpacity > 0)
+                              Positioned(
+                                top: 0,
+                                right: 0,
+                                width: baseWidth,
+                                height: widget.anchorSize.height,
+                                child: Opacity(
+                                  opacity: faceOpacity,
+                                  child: Center(
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          targetIcon,
+                                          size: 19,
+                                          color: targetColor,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          targetLabel,
+                                          style: TextStyle(
+                                            fontSize: 14.5,
+                                            fontWeight: FontWeight.normal,
+                                            color: effectiveFaceTextColor,
+                                            letterSpacing: -0.2,
+                                            decoration: TextDecoration.none,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                            // Expanded list
+                            if (listOpacity > 0)
+                              Positioned(
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                child: Opacity(
+                                  opacity: listOpacity,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 7,
+                                      vertical: 7,
+                                    ),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        _LiquidMenuRow(
+                                          title: 'System Default',
+                                          icon: CupertinoIcons
+                                              .device_phone_portrait,
+                                          iconColor: const Color(0xFF007AFF),
+                                          selected:
+                                              _activeMode == ThemeMode.system,
+                                          isDark: currentIsDark,
+                                          onTap: () =>
+                                              _handleSelect(ThemeMode.system),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        _LiquidMenuRow(
+                                          title: 'Light',
+                                          icon: _activeMode == ThemeMode.light
+                                              ? CupertinoIcons.sun_max_fill
+                                              : CupertinoIcons.sun_max,
+                                          iconColor: const Color(0xFFFF9500),
+                                          selected:
+                                              _activeMode == ThemeMode.light,
+                                          isDark: currentIsDark,
+                                          onTap: () =>
+                                              _handleSelect(ThemeMode.light),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        _LiquidMenuRow(
+                                          title: 'Dark',
+                                          icon: _activeMode == ThemeMode.dark
+                                              ? CupertinoIcons.moon_fill
+                                              : CupertinoIcons.moon,
+                                          iconColor: const Color(0xFF5E5CE6),
+                                          selected:
+                                              _activeMode == ThemeMode.dark,
+                                          isDark: currentIsDark,
+                                          onTap: () =>
+                                              _handleSelect(ThemeMode.dark),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ],
     );
   }
 }
 
-/// An individual option row inside the floating liquid glass menu.
-class _GlassMenuItem extends StatelessWidget {
+// ---------------------------------------------------------------------
+// Interactive row with tactile squish physics
+// ---------------------------------------------------------------------
+
+class _LiquidMenuRow extends StatefulWidget {
   final String title;
   final IconData icon;
   final Color iconColor;
-  final bool isSelected;
+  final bool selected;
   final bool isDark;
   final VoidCallback onTap;
 
-  const _GlassMenuItem({
+  const _LiquidMenuRow({
     required this.title,
     required this.icon,
     required this.iconColor,
-    required this.isSelected,
+    required this.selected,
     required this.isDark,
     required this.onTap,
   });
 
   @override
-  Widget build(BuildContext context) {
-    final textPrimary = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
-    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+  State<_LiquidMenuRow> createState() => _LiquidMenuRowState();
+}
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      splashColor: iconColor.withValues(alpha: 0.12),
-      highlightColor: iconColor.withValues(alpha: 0.08),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 18,
-              color: isSelected ? iconColor : iconColor.withValues(alpha: 0.75),
-            ),
-            const SizedBox(width: 9),
-            Flexible(
-              child: Text(
-                title,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                  color: isSelected ? textPrimary : textMuted,
-                  letterSpacing: -0.2,
-                ),
-                maxLines: 1,
-              ),
-            ),
-            if (isSelected) ...[
-              const SizedBox(width: 7),
+class _LiquidMenuRowState extends State<_LiquidMenuRow> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = widget.isDark;
+    final textPrimary = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
+
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapCancel: () => setState(() => _pressed = false),
+      onTapUp: (_) => setState(() => _pressed = false),
+      onTap: widget.onTap,
+      child: AnimatedScale(
+        scale: _pressed ? 0.96 : 1.0,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+        child: Container(
+          padding: const EdgeInsets.only(left: 17, right: 14, top: 11, bottom: 11),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: _pressed
+                ? (isDark ? Colors.white : Colors.black).withValues(alpha: 0.06)
+                : Colors.transparent,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
               Icon(
-                Icons.check_rounded,
-                size: 17,
-                color: textPrimary,
+                widget.icon,
+                size: 18,
+                color: widget.iconColor,
               ),
+              const SizedBox(width: 12),
+              Flexible(
+                child: Text(
+                  widget.title,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.normal,
+                    color: textPrimary,
+                    letterSpacing: -0.2,
+                    decoration: TextDecoration.none,
+                  ),
+                  maxLines: 1,
+                ),
+              ),
+              if (widget.selected) ...[
+                const SizedBox(width: 7),
+                Icon(
+                  Icons.check_rounded,
+                  size: 17,
+                  color: textPrimary,
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
   }
+}
+
+// ---------------------------------------------------------------------
+// Saturation Boost Matrix
+// ---------------------------------------------------------------------
+
+List<double> _saturationMatrix(double s) {
+  const lumR = 0.2126, lumG = 0.7152, lumB = 0.0722;
+  final sr = (1 - s) * lumR, sg = (1 - s) * lumG, sb = (1 - s) * lumB;
+  return [
+    sr + s, sg, sb, 0, 0,
+    sr, sg + s, sb, 0, 0,
+    sr, sg, sb + s, 0, 0,
+    0, 0, 0, 1, 0,
+  ];
 }
