@@ -18,13 +18,89 @@ class ExpenseHistoryScreen extends StatefulWidget {
   State<ExpenseHistoryScreen> createState() => _ExpenseHistoryScreenState();
 }
 
-class _ExpenseHistoryScreenState extends State<ExpenseHistoryScreen> {
+class _ExpenseHistoryScreenState extends State<ExpenseHistoryScreen>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _filterScrollController = ScrollController();
+  final Map<ExpenseCategory, GlobalKey> _categoryKeys = {
+    for (final cat in ExpenseCategory.values) cat: GlobalKey(),
+  };
+
+  late final AnimationController _clearIconAnimationController;
+  late final Animation<double> _clearRotateAnimation;
+  late final Animation<double> _clearFadeAnimation;
+  bool _isClearing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _clearIconAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 260),
+    );
+    _clearRotateAnimation = Tween<double>(begin: 0.0, end: 0.5).animate(
+      CurvedAnimation(
+        parent: _clearIconAnimationController,
+        curve: Curves.easeInOutCubic,
+      ),
+    );
+    _clearFadeAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _clearIconAnimationController,
+        curve: const Interval(0.65, 1.0, curve: Curves.easeIn),
+      ),
+    );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToActiveCategory();
+    });
+  }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _filterScrollController.dispose();
+    _clearIconAnimationController.dispose();
     super.dispose();
+  }
+
+  void _clearSearchText(ExpenseProvider provider) {
+    if (_isClearing) return;
+    _isClearing = true;
+    _clearIconAnimationController.forward(from: 0.0).then((_) {
+      if (mounted) {
+        _searchController.clear();
+        provider.setSearchQuery('');
+        _clearIconAnimationController.reset();
+        _isClearing = false;
+      }
+    });
+  }
+
+  void _scrollToActiveCategory() {
+    if (!mounted) return;
+    final selectedCategory = context.read<ExpenseProvider>().selectedCategory;
+    if (selectedCategory != null) {
+      final targetContext = _categoryKeys[selectedCategory]?.currentContext;
+      if (targetContext != null) {
+        Scrollable.ensureVisible(
+          targetContext,
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeOutCubic,
+          alignment: 0.5,
+        );
+      }
+    }
+  }
+
+  void _scrollToAll() {
+    if (_filterScrollController.hasClients) {
+      _filterScrollController.animateTo(
+        0.0,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOutCubic,
+      );
+    }
   }
 
   Future<void> _pickMonth(BuildContext context, ExpenseProvider provider) async {
@@ -69,17 +145,6 @@ class _ExpenseHistoryScreenState extends State<ExpenseHistoryScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Expense History'),
-        actions: [
-          if (provider.hasActiveFilters)
-            TextButton.icon(
-              onPressed: () {
-                _searchController.clear();
-                provider.clearFilters();
-              },
-              icon: const Icon(Icons.clear_all_rounded, size: 18),
-              label: const Text('Reset'),
-            ),
-        ],
       ),
       body: SafeArea(
         bottom: false,
@@ -94,13 +159,44 @@ class _ExpenseHistoryScreenState extends State<ExpenseHistoryScreen> {
                 decoration: InputDecoration(
                   hintText: 'Search expenses by title...',
                   prefixIcon: const Icon(Icons.search_rounded),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(28),
+                    borderSide: BorderSide(
+                      color: theme.brightness == Brightness.dark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFE2E8F0),
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(28),
+                    borderSide: BorderSide(
+                      color: theme.brightness == Brightness.dark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFE2E8F0),
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(28),
+                    borderSide: BorderSide(
+                      color: theme.colorScheme.primary,
+                      width: 1.5,
+                    ),
+                  ),
+                  filled: true,
+                  fillColor: theme.brightness == Brightness.dark
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFFF8FAFC),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
-                          icon: const Icon(Icons.clear_rounded, size: 18),
-                          onPressed: () {
-                            _searchController.clear();
-                            provider.setSearchQuery('');
-                          },
+                          icon: RotationTransition(
+                            turns: _clearRotateAnimation,
+                            child: FadeTransition(
+                              opacity: _clearFadeAnimation,
+                              child: const Icon(Icons.clear_rounded, size: 18),
+                            ),
+                          ),
+                          onPressed: () => _clearSearchText(provider),
                         )
                       : null,
                 ),
@@ -111,14 +207,19 @@ class _ExpenseHistoryScreenState extends State<ExpenseHistoryScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: SingleChildScrollView(
+                controller: _filterScrollController,
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
                     // "All" Category Pill
-                    FilterChip(
-                      selected: provider.selectedCategory == null,
-                      label: const Text('All Categories'),
-                      onSelected: (_) => provider.setCategoryFilter(null),
+                    CategoryChip.all(
+                      isSelected: provider.selectedCategory == null,
+                      customColor: theme.colorScheme.primary,
+                      neutralUnselected: true,
+                      onTap: () {
+                        provider.setCategoryFilter(null);
+                        _scrollToAll();
+                      },
                     ),
                     const SizedBox(width: 8),
 
@@ -127,13 +228,27 @@ class _ExpenseHistoryScreenState extends State<ExpenseHistoryScreen> {
                       return Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: CategoryChip(
+                          key: _categoryKeys[cat],
                           category: cat,
                           isSelected: provider.selectedCategory == cat,
+                          customColor: theme.colorScheme.primary,
+                          neutralUnselected: true,
                           onTap: () {
                             if (provider.selectedCategory == cat) {
                               provider.setCategoryFilter(null);
                             } else {
                               provider.setCategoryFilter(cat);
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                final targetContext = _categoryKeys[cat]?.currentContext;
+                                if (targetContext != null) {
+                                  Scrollable.ensureVisible(
+                                    targetContext,
+                                    duration: const Duration(milliseconds: 300),
+                                    curve: Curves.easeOutCubic,
+                                    alignment: 0.5,
+                                  );
+                                }
+                              });
                             }
                           },
                         ),
@@ -142,11 +257,46 @@ class _ExpenseHistoryScreenState extends State<ExpenseHistoryScreen> {
 
                     // Month Filter Button
                     ActionChip(
-                      avatar: const Icon(Icons.calendar_month_rounded, size: 16),
+                      avatar: Icon(
+                        Icons.calendar_month_rounded,
+                        size: 16,
+                        color: provider.selectedMonth != null
+                            ? Colors.white
+                            : (theme.brightness == Brightness.dark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B)),
+                      ),
                       label: Text(
                         provider.selectedMonth != null
                             ? DateFormatter.formatShortMonthYear(provider.selectedMonth!)
                             : 'All Months',
+                        style: TextStyle(
+                          color: provider.selectedMonth != null
+                              ? Colors.white
+                              : (theme.brightness == Brightness.dark
+                                  ? const Color(0xFFE2E8F0)
+                                  : const Color(0xFF334155)),
+                          fontWeight: provider.selectedMonth != null
+                              ? FontWeight.w700
+                              : FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                      backgroundColor: provider.selectedMonth != null
+                          ? theme.colorScheme.primary
+                          : (theme.brightness == Brightness.dark
+                              ? const Color(0xFF1E293B)
+                              : const Color(0xFFF8FAFC)),
+                      side: BorderSide(
+                        color: provider.selectedMonth != null
+                            ? theme.colorScheme.primary
+                            : (theme.brightness == Brightness.dark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFE2E8F0)),
+                        width: provider.selectedMonth != null ? 1.5 : 1.0,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       onPressed: () => _pickMonth(context, provider),
                     ),
@@ -202,6 +352,7 @@ class _ExpenseHistoryScreenState extends State<ExpenseHistoryScreen> {
                           ? () {
                               _searchController.clear();
                               provider.clearFilters();
+                              _scrollToAll();
                             }
                           : null,
                     )

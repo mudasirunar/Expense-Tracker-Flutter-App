@@ -3,31 +3,68 @@ import '../core/constants/categories.dart';
 
 /// Reusable category chip pill for filtering and selection.
 class CategoryChip extends StatelessWidget {
-  final ExpenseCategory category;
+  final ExpenseCategory? category;
+  final String? customLabel;
+  final IconData? customIcon;
+  final Color? customColor;
   final bool isSelected;
   final VoidCallback? onTap;
   final bool showIcon;
+  final bool neutralUnselected;
 
   const CategoryChip({
     super.key,
-    required this.category,
+    required ExpenseCategory this.category,
     this.isSelected = false,
     this.onTap,
     this.showIcon = true,
-  });
+    this.customColor,
+    this.neutralUnselected = false,
+  })  : customLabel = null,
+        customIcon = null;
+
+  const CategoryChip.all({
+    super.key,
+    required this.isSelected,
+    this.onTap,
+    this.showIcon = true,
+    this.customColor,
+    this.neutralUnselected = false,
+  })  : category = null,
+        customLabel = 'All',
+        customIcon = Icons.grid_view_rounded;
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isSelected
-        ? category.color.withValues(alpha: 0.18)
-        : (isDark ? category.darkBackgroundColor : category.lightBackgroundColor);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
-    final borderColor = isSelected
-        ? category.color
-        : category.color.withValues(alpha: 0.35);
+    final baseColor = customColor ??
+        (category != null ? category!.color : theme.colorScheme.primary);
+    final label = customLabel ?? category!.label;
+    final icon = customIcon ?? category?.icon;
 
-    final textColor = isDark ? Colors.white : category.color;
+    final Color bgColor;
+    final Color borderColor;
+    final Color textColor;
+    final Color iconColor;
+
+    if (isSelected) {
+      bgColor = baseColor;
+      borderColor = baseColor;
+      textColor = Colors.white;
+      iconColor = Colors.white;
+    } else if (neutralUnselected) {
+      bgColor = isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC);
+      borderColor = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+      textColor = isDark ? const Color(0xFFE2E8F0) : const Color(0xFF334155);
+      iconColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    } else {
+      bgColor = baseColor.withValues(alpha: isDark ? 0.12 : 0.08);
+      borderColor = baseColor.withValues(alpha: isDark ? 0.25 : 0.18);
+      textColor = isDark ? const Color(0xFFF1F5F9) : baseColor;
+      iconColor = baseColor;
+    }
 
     return Material(
       color: Colors.transparent,
@@ -42,22 +79,22 @@ class CategoryChip extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: borderColor,
-              width: isSelected ? 1.8 : 1.0,
+              width: isSelected ? 1.5 : 1.0,
             ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (showIcon) ...[
+              if (showIcon && icon != null) ...[
                 Icon(
-                  category.icon,
+                  icon,
                   size: 16,
-                  color: category.color,
+                  color: iconColor,
                 ),
                 const SizedBox(width: 6),
               ],
               Text(
-                category.label,
+                label,
                 style: TextStyle(
                   color: textColor,
                   fontSize: 13,

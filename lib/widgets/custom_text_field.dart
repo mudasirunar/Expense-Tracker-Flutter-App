@@ -69,13 +69,25 @@ class CustomTextField extends StatelessWidget {
           ),
           decoration: InputDecoration(
             hintText: hintText,
-            prefixText: prefixText,
-            prefixIcon: prefixIcon,
+            prefixIcon: prefixText != null
+                ? Padding(
+                    padding: const EdgeInsets.only(left: 16, right: 8),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          prefixText!,
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : prefixIcon,
+            prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
             suffixIcon: suffixIcon,
-            prefixStyle: theme.textTheme.bodyLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: theme.colorScheme.primary,
-            ),
           ),
         ),
       ],

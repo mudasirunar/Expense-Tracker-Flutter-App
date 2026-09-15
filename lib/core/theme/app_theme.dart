@@ -10,7 +10,7 @@ abstract final class AppTheme {
   static const Color lightBackground = Color(0xFFF8FAFC); // Slate 50
   static const Color lightSurface = Color(0xFFFFFFFF);
   static const Color lightBorder = Color(0xFFE2E8F0); // Slate 200
-  static const Color lightPrimary = Color(0xFF0F766E); // Deep Teal/Emerald
+  static const Color lightPrimary = Color(0xFFCC6221); // Spiced Terracotta / Burnt Copper
   static const Color lightOnSurface = Color(0xFF0F172A); // Slate 900
   static const Color lightSubtext = Color(0xFF64748B); // Slate 500
 
@@ -18,7 +18,7 @@ abstract final class AppTheme {
   static const Color darkBackground = Color(0xFF0B1120); // Deep Navy/Charcoal
   static const Color darkSurface = Color(0xFF151E32); // Slate Surface
   static const Color darkBorder = Color(0xFF25334D); // Slate 700
-  static const Color darkPrimary = Color(0xFF14B8A6); // Muted Mint Teal
+  static const Color darkPrimary = Color(0xFFE07836); // Luminous Terracotta (high-contrast for dark surfaces)
   static const Color darkOnSurface = Color(0xFFF1F5F9); // Slate 100
   static const Color darkSubtext = Color(0xFF94A3B8); // Slate 400
 
@@ -39,6 +39,12 @@ abstract final class AppTheme {
         onSurface: lightOnSurface,
         error: danger,
         onError: Colors.white,
+      ),
+      actionIconTheme: ActionIconThemeData(
+        backButtonIconBuilder: (BuildContext context) => const Icon(
+          Icons.chevron_left_rounded,
+          size: 28,
+        ),
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: lightBackground,
@@ -69,6 +75,13 @@ abstract final class AppTheme {
           side: const BorderSide(color: lightBorder, width: 1),
         ),
       ),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: lightPrimary,
+        foregroundColor: Colors.white,
+        elevation: 2,
+        focusElevation: 4,
+        hoverElevation: 4,
+      ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: lightSurface,
@@ -94,6 +107,16 @@ abstract final class AppTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
+          backgroundColor: lightPrimary,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
           backgroundColor: lightPrimary,
           foregroundColor: Colors.white,
           elevation: 0,
@@ -135,11 +158,17 @@ abstract final class AppTheme {
       scaffoldBackgroundColor: darkBackground,
       colorScheme: const ColorScheme.dark(
         primary: darkPrimary,
-        onPrimary: darkBackground,
+        onPrimary: Colors.white,
         surface: darkSurface,
         onSurface: darkOnSurface,
         error: danger,
         onError: Colors.white,
+      ),
+      actionIconTheme: ActionIconThemeData(
+        backButtonIconBuilder: (BuildContext context) => const Icon(
+          Icons.chevron_left_rounded,
+          size: 28,
+        ),
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: darkBackground,
@@ -170,6 +199,13 @@ abstract final class AppTheme {
           side: const BorderSide(color: darkBorder, width: 1),
         ),
       ),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: darkPrimary,
+        foregroundColor: Colors.white,
+        elevation: 2,
+        focusElevation: 4,
+        hoverElevation: 4,
+      ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: darkSurface,
@@ -196,7 +232,17 @@ abstract final class AppTheme {
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: darkPrimary,
-          foregroundColor: darkBackground,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: darkPrimary,
+          foregroundColor: Colors.white,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

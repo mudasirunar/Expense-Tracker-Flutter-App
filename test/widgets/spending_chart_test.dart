@@ -21,7 +21,6 @@ void main() {
     ));
 
     expect(find.text('Spending Distribution'), findsOneWidget);
-    expect(find.text('Bonus Feature'), findsOneWidget);
     expect(find.text('No spending data for this month'), findsOneWidget);
   });
 
