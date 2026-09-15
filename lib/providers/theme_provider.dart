@@ -8,27 +8,51 @@ class ThemeProvider extends ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.system;
 
   ThemeProvider([this._prefs]) {
-    _loadThemeMode();
+    if (_prefs != null) {
+      _applySavedTheme(_prefs.getString(_prefKey));
+    } else {
+      _loadThemeModeAsync();
+    }
   }
 
   /// Active theme mode (System, Light, or Dark).
   ThemeMode get themeMode => _themeMode;
 
-  /// Whether dark mode is explicitly active.
-  bool get isDarkMode => _themeMode == ThemeMode.dark;
+  /// Whether the app is currently in dark mode (accounting for system setting).
+  bool isCurrentlyDark([BuildContext? context]) {
+    if (_themeMode == ThemeMode.dark) return true;
+    if (_themeMode == ThemeMode.light) return false;
+    if (context != null) {
+      return MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    }
+    return WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark;
+  }
 
-  void _loadThemeMode() {
-    final savedModeString = _prefs?.getString(_prefKey);
+  /// Whether dark mode is explicitly active.
+  bool get isDarkMode => isCurrentlyDark();
+
+  void _applySavedTheme(String? savedModeString) {
     if (savedModeString != null) {
-      switch (savedModeString) {
-        case 'light':
-          _themeMode = ThemeMode.light;
-          break;
-        case 'dark':
-          _themeMode = ThemeMode.dark;
-          break;
-        default:
-          _themeMode = ThemeMode.system;
+      _themeMode = switch (savedModeString) {
+        'light' => ThemeMode.light,
+        'dark' => ThemeMode.dark,
+        _ => ThemeMode.system,
+      };
+    }
+  }
+
+  Future<void> _loadThemeModeAsync() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedModeString = prefs.getString(_prefKey);
+    if (savedModeString != null) {
+      final loadedMode = switch (savedModeString) {
+        'light' => ThemeMode.light,
+        'dark' => ThemeMode.dark,
+        _ => ThemeMode.system,
+      };
+      if (_themeMode != loadedMode) {
+        _themeMode = loadedMode;
+        notifyListeners();
       }
     }
   }
@@ -54,9 +78,10 @@ class ThemeProvider extends ChangeNotifier {
     }
   }
 
-  /// Toggles between Light and Dark mode.
-  Future<void> toggleTheme() async {
-    final newMode = _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+  /// Toggles between Light and Dark mode, persisting the new choice.
+  Future<void> toggleTheme([BuildContext? context]) async {
+    final currentlyDark = isCurrentlyDark(context);
+    final newMode = currentlyDark ? ThemeMode.light : ThemeMode.dark;
     await setThemeMode(newMode);
   }
 }

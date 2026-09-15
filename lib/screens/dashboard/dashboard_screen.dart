@@ -4,9 +4,9 @@ import '../../core/constants/categories.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../providers/expense_provider.dart';
-import '../../providers/theme_provider.dart';
 import '../../widgets/common_empty_state.dart';
 import '../../widgets/expense_list_tile.dart';
+import '../../widgets/theme_mode_dropdown.dart';
 import 'widgets/spending_chart.dart';
 
 /// Primary dashboard screen displaying month totals, category breakdown, and recent expenses.
@@ -47,7 +47,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final expenseProvider = context.watch<ExpenseProvider>();
-    final themeProvider = context.watch<ThemeProvider>();
 
     final isCurrentMonth = DateFormatter.isSameMonth(_displayedMonth, DateTime.now());
     final monthTotalPaisa = expenseProvider.allExpenses
@@ -65,15 +64,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Expense Tracker'),
-        actions: [
-          IconButton(
-            tooltip: themeProvider.isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode',
-            icon: Icon(
-              themeProvider.isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-            ),
-            onPressed: () => context.read<ThemeProvider>().toggleTheme(),
-          ),
-          const SizedBox(width: 8),
+        actions: const [
+          ThemeModeDropdown(),
+          SizedBox(width: 14),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
