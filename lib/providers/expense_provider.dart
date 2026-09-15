@@ -37,6 +37,17 @@ class ExpenseProvider extends ChangeNotifier {
   List<Expense> get recentFiveExpenses =>
       _expenses.length <= 5 ? List.unmodifiable(_expenses) : List.unmodifiable(_expenses.sublist(0, 5));
 
+  /// Returns a sorted list of unique months (newest first) that contain recorded expenses.
+  List<DateTime> get recordedMonths {
+    final monthsSet = <String, DateTime>{};
+    for (final e in _expenses) {
+      final key = '${e.date.year}-${e.date.month}';
+      monthsSet.putIfAbsent(key, () => DateTime(e.date.year, e.date.month));
+    }
+    final list = monthsSet.values.toList()..sort((a, b) => b.compareTo(a));
+    return list;
+  }
+
   /// Calculates total paisa spent in the current calendar month.
   int get currentMonthTotalPaisa {
     final now = DateTime.now();

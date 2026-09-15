@@ -103,22 +103,182 @@ class _ExpenseHistoryScreenState extends State<ExpenseHistoryScreen>
     }
   }
 
-  Future<void> _pickMonth(BuildContext context, ExpenseProvider provider) async {
-    final now = DateTime.now();
-    final currentSelected = provider.selectedMonth ?? now;
+  Widget _buildMonthDropdown(BuildContext context, ThemeData theme, ExpenseProvider provider) {
+    final isDark = theme.brightness == Brightness.dark;
+    final isMonthSelected = provider.selectedMonth != null;
+    final recordedMonths = provider.recordedMonths;
 
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: currentSelected,
-      firstDate: DateTime(2020),
-      lastDate: now,
-      helpText: 'SELECT MONTH TO FILTER',
-      initialDatePickerMode: DatePickerMode.year,
+    // Sentinel value — PopupMenuButton.onSelected ignores null,
+    // so we use DateTime(0) to represent "All Months" (reset).
+    final allMonthsSentinel = DateTime(0);
+
+    final label = isMonthSelected
+        ? DateFormatter.formatShortMonthYear(provider.selectedMonth!)
+        : 'All Months';
+
+    return Theme(
+      data: theme.copyWith(
+        // Kill the persistent focus/highlight stain from initialValue
+        focusColor: Colors.transparent,
+        highlightColor: Colors.transparent,
+        popupMenuTheme: PopupMenuThemeData(
+          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+              width: 1,
+            ),
+          ),
+          elevation: 6,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.antiAlias,
+        child: PopupMenuButton<DateTime>(
+          tooltip: 'Filter by Month',
+          offset: const Offset(0, 50),
+          padding: EdgeInsets.zero,
+          // All Months (48) + Divider (16) + 6.5 month rows (312) = 376
+          constraints: const BoxConstraints(maxHeight: 376),
+          // Auto-scroll to selected month only if beyond first 6 visible
+          initialValue: () {
+            if (provider.selectedMonth == null) return null;
+            final idx = recordedMonths.indexWhere(
+              (m) => DateFormatter.isSameMonth(m, provider.selectedMonth!),
+            );
+            return idx >= 6 ? provider.selectedMonth : null;
+          }(),
+
+          onSelected: (DateTime month) {
+            if (month == allMonthsSentinel) {
+              provider.setSelectedMonth(null);
+            } else {
+              provider.setSelectedMonth(month);
+            }
+          },
+          itemBuilder: (context) {
+            return [
+              // "All Months" option (Reset)
+              PopupMenuItem<DateTime>(
+                value: allMonthsSentinel,
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_view_month_rounded,
+                      size: 18,
+                      color: !isMonthSelected
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'All Months',
+                        style: TextStyle(
+                          fontWeight: !isMonthSelected ? FontWeight.w700 : FontWeight.w500,
+                          color: !isMonthSelected ? theme.colorScheme.primary : null,
+                          fontSize: 13.5,
+                        ),
+                      ),
+                    ),
+
+                  ],
+                ),
+              ),
+              if (recordedMonths.isNotEmpty) const PopupMenuDivider(),
+
+              // Only recorded months!
+              ...recordedMonths.map((month) {
+                final isThisSelected = isMonthSelected &&
+                    DateFormatter.isSameMonth(provider.selectedMonth!, month);
+
+                return PopupMenuItem<DateTime>(
+                  value: month,
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.event_note_rounded,
+                        size: 18,
+                        color: isThisSelected
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          DateFormatter.formatMonthYear(month),
+                          style: TextStyle(
+                            fontWeight: isThisSelected ? FontWeight.w700 : FontWeight.w500,
+                            color: isThisSelected ? theme.colorScheme.primary : null,
+                            fontSize: 13.5,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ];
+          },
+          child: Container(
+            height: 46,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: isMonthSelected
+                  ? theme.colorScheme.primary.withValues(alpha: isDark ? 0.22 : 0.12)
+                  : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isMonthSelected
+                    ? theme.colorScheme.primary
+                    : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                width: isMonthSelected ? 1.5 : 1.0,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.calendar_month_rounded,
+                  size: 16,
+                  color: isMonthSelected
+                      ? theme.colorScheme.primary
+                      : (theme.brightness == Brightness.dark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B)),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: isMonthSelected ? FontWeight.w700 : FontWeight.w600,
+                    color: isMonthSelected
+                        ? theme.colorScheme.primary
+                        : (theme.brightness == Brightness.dark
+                            ? const Color(0xFFE2E8F0)
+                            : const Color(0xFF334155)),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.arrow_drop_down_rounded,
+                  size: 20,
+                  color: isMonthSelected
+                      ? theme.colorScheme.primary
+                      : (theme.brightness == Brightness.dark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
-
-    if (picked != null) {
-      provider.setSelectedMonth(DateTime(picked.year, picked.month));
-    }
   }
 
   Future<void> _deleteExpense(Expense expense) async {
@@ -145,65 +305,97 @@ class _ExpenseHistoryScreenState extends State<ExpenseHistoryScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Expense History'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add_rounded),
+            tooltip: 'Add Expense',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const AddEditExpenseScreen(),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: SafeArea(
         bottom: false,
         child: Column(
           children: [
-            // 1. Search Bar
+            // 1. Search Bar & Month Filter Row
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: TextField(
-                controller: _searchController,
-                onChanged: (val) => provider.setSearchQuery(val),
-                decoration: InputDecoration(
-                  hintText: 'Search expenses by title...',
-                  prefixIcon: const Icon(Icons.search_rounded),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(28),
-                    borderSide: BorderSide(
-                      color: theme.brightness == Brightness.dark
-                          ? const Color(0xFF334155)
-                          : const Color(0xFFE2E8F0),
-                    ),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(28),
-                    borderSide: BorderSide(
-                      color: theme.brightness == Brightness.dark
-                          ? const Color(0xFF334155)
-                          : const Color(0xFFE2E8F0),
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(28),
-                    borderSide: BorderSide(
-                      color: theme.colorScheme.primary,
-                      width: 1.5,
-                    ),
-                  ),
-                  filled: true,
-                  fillColor: theme.brightness == Brightness.dark
-                      ? const Color(0xFF1E293B)
-                      : const Color(0xFFF8FAFC),
-                  suffixIcon: _searchController.text.isNotEmpty
-                      ? IconButton(
-                          icon: RotationTransition(
-                            turns: _clearRotateAnimation,
-                            child: FadeTransition(
-                              opacity: _clearFadeAnimation,
-                              child: const Icon(Icons.clear_rounded, size: 18),
+              child: Row(
+                children: [
+                  // Search Bar
+                  Expanded(
+                    child: SizedBox(
+                      height: 46,
+                      child: TextField(
+                        controller: _searchController,
+                        onChanged: (val) => provider.setSearchQuery(val),
+                        style: const TextStyle(fontSize: 14),
+                        decoration: InputDecoration(
+                          hintText: 'Search expenses...',
+                          hintStyle: TextStyle(
+                            fontSize: 13,
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+                          ),
+                          prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(
+                              color: theme.brightness == Brightness.dark
+                                  ? const Color(0xFF334155)
+                                  : const Color(0xFFE2E8F0),
                             ),
                           ),
-                          onPressed: () => _clearSearchText(provider),
-                        )
-                      : null,
-                ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(
+                              color: theme.brightness == Brightness.dark
+                                  ? const Color(0xFF334155)
+                                  : const Color(0xFFE2E8F0),
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(
+                              color: theme.colorScheme.primary,
+                              width: 1.5,
+                            ),
+                          ),
+                          filled: true,
+                          fillColor: theme.brightness == Brightness.dark
+                              ? const Color(0xFF1E293B)
+                              : const Color(0xFFF8FAFC),
+                          suffixIcon: _searchController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: RotationTransition(
+                                    turns: _clearRotateAnimation,
+                                    child: FadeTransition(
+                                      opacity: _clearFadeAnimation,
+                                      child: const Icon(Icons.clear_rounded, size: 18),
+                                    ),
+                                  ),
+                                  onPressed: () => _clearSearchText(provider),
+                                )
+                              : null,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+
+                  // Option B: Month Dropdown
+                  _buildMonthDropdown(context, theme, provider),
+                ],
               ),
             ),
 
-            // 2. Category & Month Filter Pills
+            // 2. Category Filter Pills
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: SingleChildScrollView(
@@ -254,52 +446,6 @@ class _ExpenseHistoryScreenState extends State<ExpenseHistoryScreen>
                         ),
                       );
                     }),
-
-                    // Month Filter Button
-                    ActionChip(
-                      avatar: Icon(
-                        Icons.calendar_month_rounded,
-                        size: 16,
-                        color: provider.selectedMonth != null
-                            ? Colors.white
-                            : (theme.brightness == Brightness.dark
-                                ? const Color(0xFF94A3B8)
-                                : const Color(0xFF64748B)),
-                      ),
-                      label: Text(
-                        provider.selectedMonth != null
-                            ? DateFormatter.formatShortMonthYear(provider.selectedMonth!)
-                            : 'All Months',
-                        style: TextStyle(
-                          color: provider.selectedMonth != null
-                              ? Colors.white
-                              : (theme.brightness == Brightness.dark
-                                  ? const Color(0xFFE2E8F0)
-                                  : const Color(0xFF334155)),
-                          fontWeight: provider.selectedMonth != null
-                              ? FontWeight.w700
-                              : FontWeight.w600,
-                          fontSize: 13,
-                        ),
-                      ),
-                      backgroundColor: provider.selectedMonth != null
-                          ? theme.colorScheme.primary
-                          : (theme.brightness == Brightness.dark
-                              ? const Color(0xFF1E293B)
-                              : const Color(0xFFF8FAFC)),
-                      side: BorderSide(
-                        color: provider.selectedMonth != null
-                            ? theme.colorScheme.primary
-                            : (theme.brightness == Brightness.dark
-                                ? const Color(0xFF334155)
-                                : const Color(0xFFE2E8F0)),
-                        width: provider.selectedMonth != null ? 1.5 : 1.0,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      onPressed: () => _pickMonth(context, provider),
-                    ),
                   ],
                 ),
               ),
@@ -320,18 +466,30 @@ class _ExpenseHistoryScreenState extends State<ExpenseHistoryScreen>
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    '${provider.filteredCount} ${provider.filteredCount == 1 ? 'expense' : 'expenses'} found',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.primary,
+                  Flexible(
+                    child: Text(
+                      '${provider.filteredCount} ${provider.filteredCount == 1 ? 'expense' : 'expenses'} found',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.primary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  Text(
-                    'Total: ${provider.formattedFilteredTotal}',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: theme.colorScheme.primary,
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        'Total: ${provider.formattedFilteredTotal}',
+                        maxLines: 1,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -364,6 +522,7 @@ class _ExpenseHistoryScreenState extends State<ExpenseHistoryScreen>
                         final expense = filteredExpenses[index];
                         return ExpenseListTile(
                           expense: expense,
+                          showCategoryChip: provider.selectedCategory == null,
                           onTap: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
