@@ -61,30 +61,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
             .take(5)
             .toList();
 
+    final topPadding = MediaQuery.paddingOf(context).top;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Expense Tracker'),
-        actions: const [
-          ThemeModeDropdown(),
-          SizedBox(width: 14),
-        ],
-      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: widget.onAddExpensePressed,
         icon: const Icon(Icons.add_rounded),
         label: const Text('Add Expense'),
       ),
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () => expenseProvider.loadExpenses(),
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 1. Month Navigation & Total Spending Card
-                _buildTotalCard(theme, monthTotalPaisa, isCurrentMonth),
+      body: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top bar that scrolls up into and behind the status bar
+            Padding(
+              padding: EdgeInsets.only(top: topPadding + 8, bottom: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Expense Tracker',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.5,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
+                  const ThemeModeDropdown(),
+                ],
+              ),
+            ),
+
+            // 1. Month Navigation & Total Spending Card
+            _buildTotalCard(theme, monthTotalPaisa, isCurrentMonth),
                 const SizedBox(height: 20),
 
                 // 1.5 Bonus Feature: Monthly Category Spending Chart
@@ -148,12 +160,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       );
                     },
                   ),
-                const SizedBox(height: 80), // Space for FAB
+                const SizedBox(height: 16),
               ],
             ),
           ),
-        ),
-      ),
     );
   }
 

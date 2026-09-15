@@ -160,6 +160,7 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
         ],
       ),
       body: SafeArea(
+        bottom: false,
         child: SingleChildScrollView(
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),

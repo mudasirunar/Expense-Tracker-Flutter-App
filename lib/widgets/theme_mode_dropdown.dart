@@ -443,9 +443,9 @@ class _LiquidMenuOverlayState extends State<_LiquidMenuOverlay>
     return Stack(
       children: [
         Positioned.fill(
-          child: GestureDetector(
+          child: Listener(
             behavior: HitTestBehavior.translucent,
-            onTap: () {
+            onPointerDown: (_) {
               if (!_closing) widget.onDismiss();
             },
             child: const SizedBox.expand(),

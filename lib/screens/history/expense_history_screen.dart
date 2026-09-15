@@ -82,6 +82,7 @@ class _ExpenseHistoryScreenState extends State<ExpenseHistoryScreen> {
         ],
       ),
       body: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             // 1. Search Bar
