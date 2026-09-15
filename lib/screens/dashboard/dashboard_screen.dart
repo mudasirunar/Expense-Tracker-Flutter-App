@@ -7,6 +7,7 @@ import '../../providers/expense_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../widgets/common_empty_state.dart';
 import '../../widgets/expense_list_tile.dart';
+import 'widgets/spending_chart.dart';
 
 /// Primary dashboard screen displaying month totals, category breakdown, and recent expenses.
 class DashboardScreen extends StatefulWidget {
@@ -91,6 +92,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
               children: [
                 // 1. Month Navigation & Total Spending Card
                 _buildTotalCard(theme, monthTotalPaisa, isCurrentMonth),
+                const SizedBox(height: 20),
+
+                // 1.5 Bonus Feature: Monthly Category Spending Chart
+                MonthlySpendingChart(
+                  categoryTotals: categoryTotals,
+                  totalPaisa: monthTotalPaisa,
+                ),
                 const SizedBox(height: 24),
 
                 // 2. Category Spending Breakdown
