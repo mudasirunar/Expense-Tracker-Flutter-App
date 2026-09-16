@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/categories.dart';
@@ -284,16 +285,62 @@ class _ExpenseHistoryScreenState extends State<ExpenseHistoryScreen>
   Future<void> _deleteExpense(Expense expense) async {
     final confirmed = await DeleteConfirmDialog.show(context);
     if (confirmed && mounted) {
-      await context.read<ExpenseProvider>().deleteExpense(expense.id);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Expense deleted.'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+      await _onExpenseDismissed(expense);
     }
+  }
+
+  Future<void> _onExpenseDismissed(Expense expense) async {
+    await context.read<ExpenseProvider>().deleteExpense(expense.id);
+    if (mounted) {
+      ScaffoldMessenger.of(context).removeCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Expense deleted.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Widget _buildSwipeBackground(ThemeData theme, {required bool isStart}) {
+    return Container(
+      alignment: isStart ? Alignment.centerLeft : Alignment.centerRight,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.error,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isStart) ...[
+            const Icon(CupertinoIcons.trash_fill, color: Colors.white, size: 20),
+            const SizedBox(width: 8),
+            const Text(
+              'Delete',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ] else ...[
+            const Text(
+              'Delete',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+                letterSpacing: 0.2,
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(CupertinoIcons.trash_fill, color: Colors.white, size: 20),
+          ],
+        ],
+      ),
+    );
   }
 
   @override
@@ -507,18 +554,26 @@ class _ExpenseHistoryScreenState extends State<ExpenseHistoryScreen>
                       separatorBuilder: (context, index) => const SizedBox(height: 8),
                       itemBuilder: (context, index) {
                         final expense = filteredExpenses[index];
-                        return ExpenseListTile(
-                          expense: expense,
-                          showCategoryChip: provider.selectedCategory == null,
-                          onTap: () {
-                            ScaffoldMessenger.of(context).removeCurrentSnackBar();
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => AddEditExpenseScreen(existingExpense: expense),
-                              ),
-                            );
-                          },
-                          onDelete: () => _deleteExpense(expense),
+                        return Dismissible(
+                          key: ValueKey('history_expense_${expense.id}'),
+                          direction: DismissDirection.horizontal,
+                          confirmDismiss: (direction) => DeleteConfirmDialog.show(context),
+                          onDismissed: (direction) => _onExpenseDismissed(expense),
+                          background: _buildSwipeBackground(theme, isStart: true),
+                          secondaryBackground: _buildSwipeBackground(theme, isStart: false),
+                          child: ExpenseListTile(
+                            expense: expense,
+                            showCategoryChip: provider.selectedCategory == null,
+                            onTap: () {
+                              ScaffoldMessenger.of(context).removeCurrentSnackBar();
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => AddEditExpenseScreen(existingExpense: expense),
+                                ),
+                              );
+                            },
+                            onDelete: () => _deleteExpense(expense),
+                          ),
                         );
                       },
                     ),
