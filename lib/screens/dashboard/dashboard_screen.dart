@@ -234,6 +234,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           return ExpenseListTile(
                             expense: expense,
                             onTap: () {
+                              ScaffoldMessenger.of(context).removeCurrentSnackBar();
                               Navigator.of(context).push(
                                 MaterialPageRoute(
                                   builder: (_) => AddEditExpenseScreen(existingExpense: expense),

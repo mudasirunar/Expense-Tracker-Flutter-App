@@ -81,6 +81,7 @@ class MyApp extends StatelessWidget {
                     );
                   },
                   onAddExpensePressed: () {
+                    ScaffoldMessenger.of(navContext).removeCurrentSnackBar();
                     Navigator.of(navContext).push(
                       MaterialPageRoute(
                         builder: (_) => const AddEditExpenseScreen(),

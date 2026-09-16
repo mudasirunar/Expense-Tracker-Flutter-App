@@ -38,6 +38,11 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).removeCurrentSnackBar();
+      }
+    });
     final expense = widget.existingExpense;
     _titleController = TextEditingController(text: expense?.title ?? '');
     _amountController = TextEditingController(

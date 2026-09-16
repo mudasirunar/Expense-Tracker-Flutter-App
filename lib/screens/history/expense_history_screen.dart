@@ -310,6 +310,7 @@ class _ExpenseHistoryScreenState extends State<ExpenseHistoryScreen>
             icon: const Icon(Icons.add_rounded),
             tooltip: 'Add Expense',
             onPressed: () {
+              ScaffoldMessenger.of(context).removeCurrentSnackBar();
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => const AddEditExpenseScreen(),
@@ -510,6 +511,7 @@ class _ExpenseHistoryScreenState extends State<ExpenseHistoryScreen>
                           expense: expense,
                           showCategoryChip: provider.selectedCategory == null,
                           onTap: () {
+                            ScaffoldMessenger.of(context).removeCurrentSnackBar();
                             Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (_) => AddEditExpenseScreen(existingExpense: expense),
@@ -547,6 +549,7 @@ class _ExpenseHistoryScreenState extends State<ExpenseHistoryScreen>
         actionLabel: 'Add Expense',
         actionIcon: Icons.add_rounded,
         onAction: () {
+          ScaffoldMessenger.of(context).removeCurrentSnackBar();
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) => const AddEditExpenseScreen(),
