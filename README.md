@@ -168,7 +168,7 @@ State management is built exclusively using the **`provider`** package as reques
 
 ## 🧪 Automated Testing & Acceptance Verification
 
-All requirements and edge cases are validated by **48 automated unit and widget tests**:
+All requirements and edge cases are validated by **62 automated unit and widget tests**:
 
 ```bash
 flutter test
@@ -182,6 +182,7 @@ flutter test
 - [x] **Input validation**: Invalid amounts (negative, zero, $>2$ decimals) are rejected.
 - [x] **Delete confirmation**: Cancelling preserves expense; confirming permanently deletes.
 - [x] **Recent 5 expenses**: Returns at most 5 items in newest-first order.
+- [x] **Contextual Empty States**: Verified distinct empty views for no data, zero search matches, empty categories, and empty months.
 
 ---
 
