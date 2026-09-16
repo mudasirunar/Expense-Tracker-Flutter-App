@@ -24,6 +24,9 @@ class AddEditExpenseScreen extends StatefulWidget {
 
 class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
   final _formKey = GlobalKey<FormState>();
+  final ScrollController _scrollController = ScrollController();
+  final FocusNode _notesFocusNode = FocusNode();
+
   late final TextEditingController _titleController;
   late final TextEditingController _amountController;
   late final TextEditingController _notesController;
@@ -38,6 +41,7 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
   @override
   void initState() {
     super.initState();
+    _notesFocusNode.addListener(_onNotesFocusChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         ScaffoldMessenger.of(context).removeCurrentSnackBar();
@@ -53,8 +57,30 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
     _selectedDate = expense?.date ?? DateTime.now();
   }
 
+  void _onNotesFocusChanged() {
+    if (_notesFocusNode.hasFocus) {
+      _scrollToNotes();
+    }
+  }
+
+  void _scrollToNotes() {
+    Future.delayed(const Duration(milliseconds: 250), () {
+      if (!mounted || !_notesFocusNode.hasFocus) return;
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
   @override
   void dispose() {
+    _notesFocusNode.removeListener(_onNotesFocusChanged);
+    _notesFocusNode.dispose();
+    _scrollController.dispose();
     _titleController.dispose();
     _amountController.dispose();
     _notesController.dispose();
@@ -158,8 +184,16 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+    final isKeyboardOpen = keyboardHeight > 0;
+    final bottomPadding = isKeyboardOpen
+        ? 16.0
+        : (MediaQuery.of(context).padding.bottom > 0
+            ? MediaQuery.of(context).padding.bottom + 16
+            : 24.0);
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: Text(isEditing ? 'Edit Expense' : 'Add Expense'),
         actions: [
@@ -174,8 +208,10 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
       body: SafeArea(
         bottom: false,
         child: SingleChildScrollView(
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          controller: _scrollController,
+          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
+          padding: EdgeInsets.fromLTRB(20, 16, 20, bottomPadding),
           child: Form(
             key: _formKey,
             autovalidateMode: _autoValidateMode,
@@ -300,13 +336,16 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
                 // 5. Notes (Optional)
                 CustomTextField(
                   controller: _notesController,
+                  focusNode: _notesFocusNode,
                   label: 'Notes (Optional)',
                   hintText: 'Add additional context or memo...',
                   maxLines: 3,
+                  scrollPadding: const EdgeInsets.only(bottom: 110),
+                  onTap: _scrollToNotes,
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 28),
 
-                // 6. Primary Save Action
+                // 6. Save Action Button
                 SizedBox(
                   width: double.infinity,
                   height: 52,
@@ -330,7 +369,6 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
                           ),
                   ),
                 ),
-                const SizedBox(height: 24),
               ],
             ),
           ),

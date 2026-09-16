@@ -18,6 +18,7 @@ class CustomTextField extends StatelessWidget {
   final List<TextInputFormatter>? inputFormatters;
   final FocusNode? focusNode;
   final AutovalidateMode? autovalidateMode;
+  final EdgeInsets scrollPadding;
 
   const CustomTextField({
     super.key,
@@ -36,6 +37,7 @@ class CustomTextField extends StatelessWidget {
     this.inputFormatters,
     this.focusNode,
     this.autovalidateMode,
+    this.scrollPadding = const EdgeInsets.all(20.0),
   });
 
   @override
@@ -61,6 +63,7 @@ class CustomTextField extends StatelessWidget {
           focusNode: focusNode,
           readOnly: readOnly,
           onTap: onTap,
+          scrollPadding: scrollPadding,
           keyboardType: keyboardType,
           validator: validator,
           onChanged: onChanged,
