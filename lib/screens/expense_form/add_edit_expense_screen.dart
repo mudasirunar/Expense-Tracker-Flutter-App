@@ -31,6 +31,7 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
   late ExpenseCategory _selectedCategory;
   late DateTime _selectedDate;
   bool _isSaving = false;
+  AutovalidateMode _autoValidateMode = AutovalidateMode.disabled;
 
   bool get isEditing => widget.existingExpense != null;
 
@@ -73,7 +74,12 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
   }
 
   Future<void> _saveExpense() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      setState(() {
+        _autoValidateMode = AutovalidateMode.onUserInteraction;
+      });
+      return;
+    }
 
     final paisa = CurrencyFormatter.parsePkrInputToPaisa(_amountController.text);
     final provider = context.read<ExpenseProvider>();
@@ -167,6 +173,7 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Form(
             key: _formKey,
+            autovalidateMode: _autoValidateMode,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -181,6 +188,11 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
                     FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
                   ],
                   validator: InputValidators.validateAmount,
+                  onChanged: (val) {
+                    if (_autoValidateMode == AutovalidateMode.onUserInteraction) {
+                      _formKey.currentState?.validate();
+                    }
+                  },
                 ),
                 const SizedBox(height: 20),
 
@@ -190,6 +202,11 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
                   label: 'Title',
                   hintText: 'e.g. Grocery shopping, Metro card recharge',
                   validator: InputValidators.validateTitle,
+                  onChanged: (val) {
+                    if (_autoValidateMode == AutovalidateMode.onUserInteraction) {
+                      _formKey.currentState?.validate();
+                    }
+                  },
                 ),
                 const SizedBox(height: 20),
 
@@ -198,7 +215,7 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
                   'Category',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w600,
-                    letterSpacing: -0.2,
+                    letterSpacing: 0.0,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -225,7 +242,7 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
                   'Date',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w600,
-                    letterSpacing: -0.2,
+                    letterSpacing: 0.0,
                   ),
                 ),
                 const SizedBox(height: 8),

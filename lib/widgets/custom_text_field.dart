@@ -17,6 +17,7 @@ class CustomTextField extends StatelessWidget {
   final int maxLines;
   final List<TextInputFormatter>? inputFormatters;
   final FocusNode? focusNode;
+  final AutovalidateMode? autovalidateMode;
 
   const CustomTextField({
     super.key,
@@ -34,6 +35,7 @@ class CustomTextField extends StatelessWidget {
     this.maxLines = 1,
     this.inputFormatters,
     this.focusNode,
+    this.autovalidateMode,
   });
 
   @override
@@ -49,7 +51,7 @@ class CustomTextField extends StatelessWidget {
             label!,
             style: theme.textTheme.bodyMedium?.copyWith(
               fontWeight: FontWeight.w600,
-              letterSpacing: -0.2,
+              letterSpacing: 0.0,
             ),
           ),
           const SizedBox(height: 8),
@@ -62,13 +64,21 @@ class CustomTextField extends StatelessWidget {
           keyboardType: keyboardType,
           validator: validator,
           onChanged: onChanged,
+          autovalidateMode: autovalidateMode,
           maxLines: maxLines,
           inputFormatters: inputFormatters,
           style: theme.textTheme.bodyLarge?.copyWith(
             fontWeight: FontWeight.w500,
+            letterSpacing: 0.0,
           ),
           decoration: InputDecoration(
             hintText: hintText,
+            errorMaxLines: 3,
+            errorStyle: const TextStyle(
+              fontSize: 12.5,
+              height: 1.3,
+              letterSpacing: 0.0,
+            ),
             prefixIcon: prefixText != null
                 ? Padding(
                     padding: const EdgeInsets.only(left: 16, right: 8),
@@ -80,6 +90,7 @@ class CustomTextField extends StatelessWidget {
                           style: theme.textTheme.bodyLarge?.copyWith(
                             fontWeight: FontWeight.w700,
                             color: theme.colorScheme.primary,
+                            letterSpacing: 0.0,
                           ),
                         ),
                       ],

@@ -102,6 +102,12 @@ abstract final class AppTheme {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: danger, width: 1),
         ),
+        errorMaxLines: 3,
+        errorStyle: const TextStyle(
+          fontSize: 12.5,
+          height: 1.3,
+          letterSpacing: 0.0,
+        ),
         hintStyle: const TextStyle(color: lightSubtext, fontSize: 14),
         labelStyle: const TextStyle(color: lightSubtext, fontSize: 14),
       ),
@@ -225,6 +231,12 @@ abstract final class AppTheme {
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: danger, width: 1),
+        ),
+        errorMaxLines: 3,
+        errorStyle: const TextStyle(
+          fontSize: 12.5,
+          height: 1.3,
+          letterSpacing: 0.0,
         ),
         hintStyle: const TextStyle(color: darkSubtext, fontSize: 14),
         labelStyle: const TextStyle(color: darkSubtext, fontSize: 14),
