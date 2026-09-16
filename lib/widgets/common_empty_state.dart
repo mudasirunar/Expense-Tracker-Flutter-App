@@ -7,6 +7,9 @@ class CommonEmptyState extends StatelessWidget {
   final String message;
   final String? actionLabel;
   final VoidCallback? onAction;
+  final Color? iconColor;
+  final Color? iconBackgroundColor;
+  final IconData? actionIcon;
 
   const CommonEmptyState({
     super.key,
@@ -15,6 +18,9 @@ class CommonEmptyState extends StatelessWidget {
     required this.message,
     this.actionLabel,
     this.onAction,
+    this.iconColor,
+    this.iconBackgroundColor,
+    this.actionIcon,
   });
 
   @override
@@ -41,15 +47,16 @@ class CommonEmptyState extends StatelessWidget {
                       width: 64,
                       height: 64,
                       decoration: BoxDecoration(
-                        color: isDark
-                            ? theme.colorScheme.primary.withValues(alpha: 0.12)
-                            : theme.colorScheme.primary.withValues(alpha: 0.08),
+                        color: iconBackgroundColor ??
+                            (isDark
+                                ? theme.colorScheme.primary.withValues(alpha: 0.12)
+                                : theme.colorScheme.primary.withValues(alpha: 0.08)),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
                         icon,
                         size: 30,
-                        color: theme.colorScheme.primary,
+                        color: iconColor ?? theme.colorScheme.primary,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -80,12 +87,21 @@ class CommonEmptyState extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
-                        child: Text(
-                          actionLabel!,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (actionIcon != null) ...[
+                              Icon(actionIcon, size: 18, color: Colors.white),
+                              const SizedBox(width: 8),
+                            ],
+                            Text(
+                              actionLabel!,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],

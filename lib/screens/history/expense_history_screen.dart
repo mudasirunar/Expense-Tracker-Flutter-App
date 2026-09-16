@@ -499,21 +499,7 @@ class _ExpenseHistoryScreenState extends State<ExpenseHistoryScreen>
             // 4. Expenses List
             Expanded(
               child: filteredExpenses.isEmpty
-                  ? CommonEmptyState(
-                      icon: Icons.search_off_rounded,
-                      title: 'No Matching Expenses',
-                      message: provider.hasActiveFilters
-                          ? 'No transactions match your current search or filter criteria.'
-                          : 'You haven\'t recorded any expenses yet.',
-                      actionLabel: provider.hasActiveFilters ? 'Clear Filters' : null,
-                      onAction: provider.hasActiveFilters
-                          ? () {
-                              _searchController.clear();
-                              provider.clearFilters();
-                              _scrollToAll();
-                            }
-                          : null,
-                    )
+                  ? _buildEmptyState(context, theme, provider)
                   : ListView.separated(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       itemCount: filteredExpenses.length,
@@ -538,6 +524,112 @@ class _ExpenseHistoryScreenState extends State<ExpenseHistoryScreen>
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildEmptyState(
+    BuildContext context,
+    ThemeData theme,
+    ExpenseProvider provider,
+  ) {
+    final isDark = theme.brightness == Brightness.dark;
+    final searchQuery = provider.searchQuery.trim();
+    final selectedCategory = provider.selectedCategory;
+    final selectedMonth = provider.selectedMonth;
+
+    // 1. App has no recorded expenses at all
+    if (provider.allExpenses.isEmpty) {
+      return CommonEmptyState(
+        icon: Icons.account_balance_wallet_outlined,
+        title: 'No Expenses Yet',
+        message:
+            'You haven\'t recorded any expenses yet. Tap below or the + button above to log your first transaction.',
+        actionLabel: 'Add Expense',
+        actionIcon: Icons.add_rounded,
+        onAction: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const AddEditExpenseScreen(),
+            ),
+          );
+        },
+      );
+    }
+
+    // 2. Active search query yields no results
+    if (searchQuery.isNotEmpty) {
+      final bool hasOtherFilters = selectedCategory != null || selectedMonth != null;
+      return CommonEmptyState(
+        icon: Icons.search_off_rounded,
+        iconColor: Colors.amber.shade700,
+        iconBackgroundColor: isDark
+            ? Colors.amber.shade900.withValues(alpha: 0.25)
+            : Colors.amber.shade50,
+        title: 'No Results Found',
+        message: hasOtherFilters
+            ? 'No transactions match "$searchQuery" within your active filter criteria.'
+            : 'No transactions found matching "$searchQuery". Check for spelling or try searching another keyword.',
+        actionLabel: 'Clear Search',
+        actionIcon: Icons.close_rounded,
+        onAction: () => _clearSearchText(provider),
+      );
+    }
+
+    // 3. Category filter has no matching expenses
+    if (selectedCategory != null) {
+      final category = selectedCategory;
+      final String message = selectedMonth != null
+          ? 'You haven\'t logged any ${category.label.toLowerCase()} expenses in ${DateFormatter.formatMonthYear(selectedMonth)}.'
+          : 'You have no transactions recorded under the ${category.label} category.';
+
+      return CommonEmptyState(
+        icon: category.icon,
+        iconColor: category.color,
+        iconBackgroundColor:
+            isDark ? category.darkBackgroundColor : category.lightBackgroundColor,
+        title: 'No ${category.label} Expenses',
+        message: message,
+        actionLabel: 'Show All Categories',
+        actionIcon: Icons.clear_all_rounded,
+        onAction: () {
+          provider.setCategoryFilter(null);
+          _scrollToAll();
+        },
+      );
+    }
+
+    // 4. Month filter has no expenses
+    if (selectedMonth != null) {
+      final monthStr = DateFormatter.formatMonthYear(selectedMonth);
+      return CommonEmptyState(
+        icon: Icons.event_busy_rounded,
+        iconColor: theme.colorScheme.primary,
+        iconBackgroundColor: isDark
+            ? theme.colorScheme.primary.withValues(alpha: 0.15)
+            : theme.colorScheme.primary.withValues(alpha: 0.08),
+        title: 'No Expenses in $monthStr',
+        message:
+            'There are no transactions recorded for this period. Try picking another month or view all.',
+        actionLabel: 'Show All Months',
+        actionIcon: Icons.calendar_month_rounded,
+        onAction: () {
+          provider.setSelectedMonth(null);
+        },
+      );
+    }
+
+    // 5. Fallback for any other combined filter state
+    return CommonEmptyState(
+      icon: Icons.filter_list_off_rounded,
+      title: 'No Matching Expenses',
+      message: 'No transactions match your current filter criteria.',
+      actionLabel: 'Clear All Filters',
+      actionIcon: Icons.refresh_rounded,
+      onAction: () {
+        _searchController.clear();
+        provider.clearFilters();
+        _scrollToAll();
+      },
     );
   }
 }
